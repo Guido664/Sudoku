@@ -20,6 +20,7 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<GameStatus>(GameStatus.PLAYING);
   const [errorCell, setErrorCell] = useState<CellCoords | null>(null);
   const [isNoteMode, setIsNoteMode] = useState<boolean>(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
   
   // Ref to track if the game has been initialized to prevent overwriting save with empty state
   const isInitialized = useRef(false);
@@ -27,6 +28,31 @@ const App: React.FC = () => {
   // Helper to create empty notes grid
   const createEmptyNotes = (): NotesGrid => 
     Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => new Set<number>()));
+
+  // PWA Install Prompt Listener
+  useEffect(() => {
+    const handler = (e: any) => {
+      // Prevent the mini-infobar from appearing on mobile
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      setInstallPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    // Show the install prompt
+    installPrompt.prompt();
+    // Wait for the user to respond to the prompt
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
 
   // Start New Game Logic
   const startNewGame = useCallback((diff: Difficulty = difficulty) => {
@@ -263,6 +289,16 @@ const App: React.FC = () => {
       <header className="w-full max-w-md lg:max-w-xl flex justify-between items-center mb-6 transition-all duration-300">
         <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-blue-600">Sudoku</h1>
         <div className="flex items-center gap-3">
+          {installPrompt && (
+            <button
+              onClick={handleInstallClick}
+              className="bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-1 transition-colors"
+              title="Install App"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+              <span className="hidden sm:inline">Install</span>
+            </button>
+          )}
           <select 
             value={difficulty} 
             onChange={handleDifficultyChange}
