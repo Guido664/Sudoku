@@ -1,0 +1,5 @@
+{
+  "name": "AI Sudoku Master",
+  "description": "A responsive, mobile-first Sudoku game featuring 3 difficulty levels and an intelligent AI hint system powered by Gemini to help you solve puzzles.",
+  "requestFramePermissions": []
+}
