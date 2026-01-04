@@ -5,6 +5,7 @@ export enum Difficulty {
 }
 
 export type Grid = number[][];
+export type NotesGrid = Set<number>[][];
 
 export interface CellCoords {
   row: number;
