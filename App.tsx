@@ -136,10 +136,10 @@ const App: React.FC = () => {
   }, [selectedCell, status, grid, completedNumbers]); // Added completedNumbers to deps
 
   return (
-    <div className="min-h-screen flex flex-col items-center py-6 px-2 sm:px-4 bg-sudoku-bg text-sudoku-text font-sans">
+    <div className="min-h-screen flex flex-col items-center py-6 px-2 sm:px-4 bg-sudoku-bg text-sudoku-text font-sans overflow-y-auto">
       
       {/* Header */}
-      <header className="w-full max-w-md flex justify-between items-center mb-6">
+      <header className="w-full max-w-md lg:max-w-xl flex justify-between items-center mb-6 transition-all duration-300">
         <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-blue-600">Sudoku</h1>
         <div className="flex items-center gap-3">
           <select 
@@ -178,7 +178,7 @@ const App: React.FC = () => {
       )}
 
       {/* Main Board Area */}
-      <div className="flex flex-col items-center w-full max-w-md">
+      <div className="flex flex-col items-center w-full max-w-md lg:max-w-xl transition-all duration-300">
         
         <Board 
           grid={grid}
