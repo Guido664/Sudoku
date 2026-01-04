@@ -1,14 +1,24 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Grid, CellCoords, HintResponse } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 export const getSmartHint = async (
   currentBoard: Grid, 
   initialBoard: Grid,
   solvedBoard: Grid,
   selectedCell: CellCoords | null
 ): Promise<HintResponse> => {
+  
+  // Initialize AI here instead of top-level to prevent crash if process.env is undefined during initial load
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey) {
+    console.warn("API Key is missing. Please configure Vercel Environment Variable 'API_KEY'.");
+    return {
+      text: "Configuration Error: API Key not found. Please add the 'API_KEY' environment variable in your Vercel project settings."
+    };
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   
   // Format the board for the prompt
   const boardStr = currentBoard.map(row => row.map(c => c === 0 ? '.' : c).join(' ')).join('\n');

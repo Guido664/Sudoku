@@ -9,6 +9,13 @@
     <title>AI Sudoku Master</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+      // Polyfill process to prevent "ReferenceError: process is not defined" in browser
+      window.process = {
+        env: {
+          NODE_ENV: 'production'
+        }
+      };
+      
       tailwind.config = {
         theme: {
           extend: {
