@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="https://upload.wikimedia.org/wikipedia/commons/e/e0/Sudoku_Puzzle_by_L2G-20050714_standardized_layout.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="theme-color" content="#1e293b" />
     <title>AI Sudoku Master</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -65,6 +67,21 @@
 </head>
   <body class="bg-sudoku-bg text-sudoku-text h-screen overflow-hidden selection:bg-blue-200">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="./index.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          // Use relative path './sw.js' instead of absolute '/sw.js' to avoid origin mismatch in preview environments
+          navigator.serviceWorker.register('./sw.js')
+            .then(registration => {
+              console.log('SW registered: ', registration);
+            })
+            .catch(registrationError => {
+              console.warn('SW registration warning: ', registrationError);
+              console.log('Note: Service Workers may fail in preview environments due to security restrictions, but will work on Vercel.');
+            });
+        });
+      }
+    </script>
   </body>
 </html>

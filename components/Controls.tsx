@@ -7,6 +7,7 @@ interface ControlsProps {
   onHint: () => void;
   isHintLoading: boolean;
   mistakes: number;
+  isOnline: boolean;
 }
 
 const Controls: React.FC<ControlsProps> = ({ 
@@ -15,7 +16,8 @@ const Controls: React.FC<ControlsProps> = ({
   onNewGame,
   onHint,
   isHintLoading,
-  mistakes
+  mistakes,
+  isOnline
 }) => {
   return (
     <div className="flex flex-col gap-4 w-full max-w-md mx-auto mt-6">
@@ -26,10 +28,14 @@ const Controls: React.FC<ControlsProps> = ({
         <div className="flex gap-2">
            <button 
             onClick={onHint}
-            disabled={isHintLoading}
+            disabled={isHintLoading || !isOnline}
             className={`
               flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold transition-all
-              ${isHintLoading ? 'bg-purple-100 text-purple-400' : 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md hover:shadow-lg hover:scale-105 active:scale-95'}
+              ${!isOnline 
+                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                  : isHintLoading 
+                    ? 'bg-purple-100 text-purple-400' 
+                    : 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md hover:shadow-lg hover:scale-105 active:scale-95'}
             `}
           >
             {isHintLoading ? (
@@ -39,6 +45,11 @@ const Controls: React.FC<ControlsProps> = ({
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
                 Thinking...
+              </>
+            ) : !isOnline ? (
+               <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                Offline
               </>
             ) : (
               <>

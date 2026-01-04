@@ -19,6 +19,9 @@ const App: React.FC = () => {
   // Hint State
   const [isHintLoading, setIsHintLoading] = useState(false);
   const [hintMessage, setHintMessage] = useState<string | null>(null);
+  
+  // Online State
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   // Initialize Game
   const startNewGame = useCallback((diff: Difficulty = difficulty) => {
@@ -39,6 +42,20 @@ const App: React.FC = () => {
   useEffect(() => {
     startNewGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+  // Online/Offline detection
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   // Handle Interactions
@@ -101,7 +118,7 @@ const App: React.FC = () => {
   };
 
   const handleSmartHint = async () => {
-    if (isHintLoading || status !== GameStatus.PLAYING) return;
+    if (isHintLoading || status !== GameStatus.PLAYING || !isOnline) return;
     setIsHintLoading(true);
     setHintMessage("Analyzing the board for the best logical move...");
 
@@ -142,15 +159,22 @@ const App: React.FC = () => {
       {/* Header */}
       <header className="w-full max-w-md flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-blue-600">Sudoku</h1>
-        <select 
-          value={difficulty} 
-          onChange={handleDifficultyChange}
-          className="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 outline-none"
-        >
-          <option value={Difficulty.EASY}>Easy</option>
-          <option value={Difficulty.MEDIUM}>Medium</option>
-          <option value={Difficulty.HARD}>Hard</option>
-        </select>
+        <div className="flex items-center gap-3">
+          {!isOnline && (
+            <span className="text-xs font-semibold text-amber-600 bg-amber-100 px-2 py-1 rounded-full animate-pulse">
+              Offline Mode
+            </span>
+          )}
+          <select 
+            value={difficulty} 
+            onChange={handleDifficultyChange}
+            className="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2 outline-none"
+          >
+            <option value={Difficulty.EASY}>Easy</option>
+            <option value={Difficulty.MEDIUM}>Medium</option>
+            <option value={Difficulty.HARD}>Hard</option>
+          </select>
+        </div>
       </header>
 
       {/* Game Over Overlays */}
@@ -218,6 +242,7 @@ const App: React.FC = () => {
           onHint={handleSmartHint}
           isHintLoading={isHintLoading}
           mistakes={mistakes}
+          isOnline={isOnline}
         />
       </div>
     </div>
