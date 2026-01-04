@@ -1,13 +1,21 @@
-const CACHE_NAME = 'sudoku-master-offline-v2';
+const CACHE_NAME = 'sudoku-master-offline-v3';
 const OFFLINE_URL = '/';
+const ASSETS_TO_CACHE = [
+  OFFLINE_URL,
+  '/manifest.json',
+  'https://cdn.tailwindcss.com'
+];
 
-// Install: Cache the app shell immediately
+// Install: Cache critical assets immediately
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // We cache the root URL to ensure the app shell loads offline
-      return cache.add(OFFLINE_URL);
+      // Cache App Shell and Critical External Dependencies
+      // We use addAll to ensure the app looks correct immediately after installation
+      return cache.addAll(ASSETS_TO_CACHE).catch(err => {
+        console.error('Failed to cache critical assets during install:', err);
+      });
     })
   );
 });
@@ -33,12 +41,12 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // 1. Ignore non-GET requests and external API calls (Gemini)
-  if (event.request.method !== 'GET' || url.pathname.includes('generativelanguage') || url.protocol === 'chrome-extension:') {
+  // Allow chrome-extension scheme if needed, but generally ignore
+  if (event.request.method !== 'GET' || url.pathname.includes('generativelanguage')) {
     return;
   }
 
   // 2. Navigation Requests (HTML): Network First, fallback to Cache (App Shell)
-  // This ensures that reloading the page while offline always returns the app
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -49,13 +57,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Asset Requests (JS, CSS, Images): Stale-While-Revalidate
-  // Serve from cache immediately, then update cache in background
+  // 3. Asset Requests (JS, CSS, Images, Fonts): Stale-While-Revalidate
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
         // Check if valid response
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+        // IMPORTANT: Allow 'cors' type for external CDNs like Tailwind
+        if (!networkResponse || networkResponse.status !== 200 || (networkResponse.type !== 'basic' && networkResponse.type !== 'cors')) {
           return networkResponse;
         }
 
@@ -66,8 +74,9 @@ self.addEventListener('fetch', (event) => {
         });
 
         return networkResponse;
-      }).catch(() => {
-        // Network failed, nothing to do (cached response already returned if available)
+      }).catch((err) => {
+        // Network failed
+        // console.log('Network fetch failed for', event.request.url);
       });
 
       // Return cached response if available, otherwise wait for network
