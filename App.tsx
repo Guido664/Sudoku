@@ -13,6 +13,8 @@ const App: React.FC = () => {
   const [solvedGrid, setSolvedGrid] = useState<Grid>([]);
   const [selectedCell, setSelectedCell] = useState<CellCoords | null>(null);
   const [mistakes, setMistakes] = useState<number>(0);
+  const [score, setScore] = useState<number>(0);
+  const [timer, setTimer] = useState<number>(0);
   const [status, setStatus] = useState<GameStatus>(GameStatus.PLAYING);
   const [errorCell, setErrorCell] = useState<CellCoords | null>(null);
   const [isNoteMode, setIsNoteMode] = useState<boolean>(false); // Toggle for Note Mode
@@ -32,6 +34,8 @@ const App: React.FC = () => {
     setNotes(createEmptyNotes());
     setSolvedGrid(newSolved);
     setMistakes(0);
+    setScore(0);
+    setTimer(0);
     setStatus(GameStatus.PLAYING);
     setSelectedCell(null);
     setErrorCell(null);
@@ -42,6 +46,17 @@ const App: React.FC = () => {
     startNewGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Timer Logic
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (status === GameStatus.PLAYING) {
+      interval = setInterval(() => {
+        setTimer(prev => prev + 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [status]);
 
   // Calculate completed numbers (appear 9 times)
   const getCompletedNumbers = () => {
@@ -110,6 +125,10 @@ const App: React.FC = () => {
       newGrid[row][col] = num;
       setGrid(newGrid);
       
+      // Update Score
+      const diffMultiplier = difficulty === Difficulty.EASY ? 1 : difficulty === Difficulty.MEDIUM ? 2 : 3;
+      setScore(prev => prev + (50 * diffMultiplier));
+
       // Clear notes in this cell when a number is placed
       setNotes(prevNotes => {
         const newNotes = prevNotes.map(r => r.map(set => new Set(set)));
@@ -128,6 +147,8 @@ const App: React.FC = () => {
         if (newMistakes >= 3) setStatus(GameStatus.LOST);
         return newMistakes;
       });
+      // Penalty for mistake
+      setScore(prev => Math.max(0, prev - 100));
       // Flash error
       setErrorCell({ row, col });
       setTimeout(() => setErrorCell(null), 800);
@@ -213,6 +234,10 @@ const App: React.FC = () => {
             <h2 className="text-2xl font-bold mb-2">
               {status === GameStatus.WON ? 'Puzzle Solved!' : 'Game Over'}
             </h2>
+            <div className="flex justify-center gap-4 mb-4 text-slate-700">
+              <div className="font-semibold">Score: {score}</div>
+              <div className="font-semibold">Time: {Math.floor(timer / 60).toString().padStart(2, '0')}:{(timer % 60).toString().padStart(2, '0')}</div>
+            </div>
             <p className="text-slate-600 mb-6">
               {status === GameStatus.WON ? "Great job! Your mind is sharp." : "Too many mistakes. Try again!"}
             </p>
@@ -246,6 +271,8 @@ const App: React.FC = () => {
           onToggleNotes={() => setIsNoteMode(!isNoteMode)}
           isNoteMode={isNoteMode}
           mistakes={mistakes}
+          score={score}
+          timer={timer}
           completedNumbers={completedNumbers}
         />
       </div>

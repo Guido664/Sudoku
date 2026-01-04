@@ -7,6 +7,8 @@ interface ControlsProps {
   onToggleNotes: () => void;
   isNoteMode: boolean;
   mistakes: number;
+  score: number;
+  timer: number;
   completedNumbers: Set<number>;
 }
 
@@ -17,12 +19,33 @@ const Controls: React.FC<ControlsProps> = ({
   onToggleNotes,
   isNoteMode,
   mistakes,
+  score,
+  timer,
   completedNumbers
 }) => {
+  // Format seconds into MM:SS
+  const formatTime = (totalSeconds: number) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   return (
-    <div className="flex flex-col gap-4 w-full max-w-md mx-auto mt-6">
+    <div className="flex flex-col gap-3 w-full max-w-md mx-auto mt-6">
       
-      {/* Stats Bar & Tools */}
+      {/* Stats Display (Score & Timer) */}
+      <div className="flex justify-between items-center px-4 text-slate-600 font-semibold text-sm">
+         <div className="flex items-center gap-1">
+            <span>Score:</span>
+            <span className="text-slate-900">{score}</span>
+         </div>
+         <div className="flex items-center gap-1">
+            <span>Time:</span>
+            <span className="text-slate-900 font-mono">{formatTime(timer)}</span>
+         </div>
+      </div>
+
+      {/* Tools Bar (Mistakes & Notes) */}
       <div className="flex justify-between items-center px-4 py-2 bg-white rounded-lg shadow-sm h-14">
         <div className="text-slate-600 font-medium">Mistakes: <span className={`${mistakes >= 3 ? 'text-red-500' : 'text-slate-900'}`}>{mistakes}/3</span></div>
         
