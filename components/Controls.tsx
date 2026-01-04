@@ -5,13 +5,15 @@ interface ControlsProps {
   onDelete: () => void;
   onNewGame: () => void;
   mistakes: number;
+  completedNumbers: Set<number>;
 }
 
 const Controls: React.FC<ControlsProps> = ({ 
   onNumberClick, 
   onDelete, 
   onNewGame,
-  mistakes
+  mistakes,
+  completedNumbers
 }) => {
   return (
     <div className="flex flex-col gap-4 w-full max-w-md mx-auto mt-6">
@@ -24,15 +26,26 @@ const Controls: React.FC<ControlsProps> = ({
 
       {/* Numpad */}
       <div className="grid grid-cols-5 gap-2 sm:gap-3">
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-          <button
-            key={num}
-            onClick={() => onNumberClick(num)}
-            className="h-12 sm:h-14 bg-white border border-slate-200 rounded-lg shadow-sm text-2xl font-medium text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 active:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300"
-          >
-            {num}
-          </button>
-        ))}
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
+          const isComplete = completedNumbers.has(num);
+          
+          return (
+            <button
+              key={num}
+              onClick={() => !isComplete && onNumberClick(num)}
+              disabled={isComplete}
+              className={`
+                h-12 sm:h-14 rounded-lg shadow-sm text-2xl font-medium transition-colors focus:outline-none focus:ring-2
+                ${isComplete 
+                  ? 'bg-slate-100 text-slate-200 border border-slate-100 cursor-default' 
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 active:bg-blue-100 focus:ring-blue-300'
+                }
+              `}
+            >
+              {num}
+            </button>
+          );
+        })}
         <button
           onClick={onDelete}
           className="h-12 sm:h-14 bg-red-50 border border-red-200 rounded-lg shadow-sm text-red-600 flex items-center justify-center hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-red-300"

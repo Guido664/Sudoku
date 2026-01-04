@@ -34,6 +34,25 @@ const App: React.FC = () => {
     startNewGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Calculate completed numbers (appear 9 times)
+  const getCompletedNumbers = () => {
+    const counts: Record<number, number> = {};
+    grid.forEach(row => {
+      row.forEach(num => {
+        if (num !== 0) {
+          counts[num] = (counts[num] || 0) + 1;
+        }
+      });
+    });
+    const completed = new Set<number>();
+    for (let i = 1; i <= 9; i++) {
+      if (counts[i] === 9) completed.add(i);
+    }
+    return completed;
+  };
+
+  const completedNumbers = getCompletedNumbers();
   
   // Handle Interactions
   const handleCellClick = (row: number, col: number) => {
@@ -44,6 +63,9 @@ const App: React.FC = () => {
   const handleNumberInput = (num: number) => {
     if (status !== GameStatus.PLAYING || !selectedCell) return;
     
+    // Check if number is already completed
+    if (completedNumbers.has(num)) return;
+
     const { row, col } = selectedCell;
 
     // Cannot edit initial cells or already filled cells
@@ -111,7 +133,7 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedCell, status, grid]); // Deps needed for state access inside listener
+  }, [selectedCell, status, grid, completedNumbers]); // Added completedNumbers to deps
 
   return (
     <div className="min-h-screen flex flex-col items-center py-6 px-2 sm:px-4 bg-sudoku-bg text-sudoku-text font-sans">
@@ -172,6 +194,7 @@ const App: React.FC = () => {
           onDelete={handleDelete}
           onNewGame={() => startNewGame()}
           mistakes={mistakes}
+          completedNumbers={completedNumbers}
         />
       </div>
     </div>
