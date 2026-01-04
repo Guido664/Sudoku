@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { generateSudoku, isValid } from './services/sudokuLogic';
-import { getSmartHint } from './services/geminiService';
+import { generateSudoku } from './services/sudokuLogic';
 import Board from './components/Board';
 import Controls from './components/Controls';
 import { Difficulty, GameStatus, Grid, CellCoords } from './types';
@@ -16,13 +15,6 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<GameStatus>(GameStatus.PLAYING);
   const [errorCell, setErrorCell] = useState<CellCoords | null>(null);
   
-  // Hint State
-  const [isHintLoading, setIsHintLoading] = useState(false);
-  const [hintMessage, setHintMessage] = useState<string | null>(null);
-  
-  // Online State
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
   // Initialize Game
   const startNewGame = useCallback((diff: Difficulty = difficulty) => {
     const { initialGrid: newInitial, solvedGrid: newSolved } = generateSudoku(diff);
@@ -35,7 +27,6 @@ const App: React.FC = () => {
     setMistakes(0);
     setStatus(GameStatus.PLAYING);
     setSelectedCell(null);
-    setHintMessage(null);
     setErrorCell(null);
   }, [difficulty]);
 
@@ -44,25 +35,10 @@ const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  // Online/Offline detection
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
   // Handle Interactions
   const handleCellClick = (row: number, col: number) => {
     if (status !== GameStatus.PLAYING) return;
     setSelectedCell({ row, col });
-    setHintMessage(null); // Clear hint on move
   };
 
   const handleNumberInput = (num: number) => {
@@ -72,11 +48,9 @@ const App: React.FC = () => {
 
     // Cannot edit initial cells or already filled cells
     if (initialGrid[row][col] !== 0) return;
-    if (grid[row][col] !== 0) return; // Optional: Allow overwriting? Typically Sudoku apps don't if it's correct.
+    if (grid[row][col] !== 0) return; 
     
     // Validate against SOLVED grid (Strict Mode)
-    // Alternatively, validate against current board rules. 
-    // Most apps validate against the true solution immediately.
     const isCorrect = solvedGrid[row][col] === num;
 
     if (isCorrect) {
@@ -117,20 +91,6 @@ const App: React.FC = () => {
     startNewGame(newDiff);
   };
 
-  const handleSmartHint = async () => {
-    if (isHintLoading || status !== GameStatus.PLAYING || !isOnline) return;
-    setIsHintLoading(true);
-    setHintMessage("Analyzing the board for the best logical move...");
-
-    const hint = await getSmartHint(grid, initialGrid, solvedGrid, selectedCell);
-    
-    setHintMessage(hint.text);
-    if (hint.coords) {
-      setSelectedCell(hint.coords);
-    }
-    setIsHintLoading(false);
-  };
-
   // Keyboard support
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -160,11 +120,6 @@ const App: React.FC = () => {
       <header className="w-full max-w-md flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-blue-600">Sudoku</h1>
         <div className="flex items-center gap-3">
-          {!isOnline && (
-            <span className="text-xs font-semibold text-amber-600 bg-amber-100 px-2 py-1 rounded-full animate-pulse">
-              Offline Mode
-            </span>
-          )}
           <select 
             value={difficulty} 
             onChange={handleDifficultyChange}
@@ -203,29 +158,6 @@ const App: React.FC = () => {
       {/* Main Board Area */}
       <div className="flex flex-col items-center w-full max-w-md">
         
-        {/* Hint Box */}
-        {hintMessage && (
-          <div className="mb-4 w-full bg-indigo-50 border border-indigo-100 p-4 rounded-lg shadow-sm animate-fade-in relative">
-            <button 
-              onClick={() => setHintMessage(null)}
-              className="absolute top-2 right-2 text-indigo-300 hover:text-indigo-500"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
-            <div className="flex gap-3">
-              <div className="flex-shrink-0 mt-0.5">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white">
-                  ✨
-                </div>
-              </div>
-              <div className="text-sm text-indigo-900 leading-relaxed">
-                <span className="font-semibold block mb-1 text-indigo-700">Gemini Hints:</span>
-                {hintMessage}
-              </div>
-            </div>
-          </div>
-        )}
-
         <Board 
           grid={grid}
           initialGrid={initialGrid}
@@ -239,10 +171,7 @@ const App: React.FC = () => {
           onNumberClick={handleNumberInput}
           onDelete={handleDelete}
           onNewGame={() => startNewGame()}
-          onHint={handleSmartHint}
-          isHintLoading={isHintLoading}
           mistakes={mistakes}
-          isOnline={isOnline}
         />
       </div>
     </div>
