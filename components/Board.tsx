@@ -1,9 +1,10 @@
 import React from 'react';
-import { Grid, CellCoords } from '../types';
+import { Grid, CellCoords, NotesGrid } from '../types';
 
 interface BoardProps {
   grid: Grid;
   initialGrid: Grid;
+  notes: NotesGrid;
   selectedCell: CellCoords | null;
   onCellClick: (row: number, col: number) => void;
   errorCell: CellCoords | null;
@@ -13,6 +14,7 @@ interface BoardProps {
 const Board: React.FC<BoardProps> = ({ 
   grid, 
   initialGrid, 
+  notes,
   selectedCell, 
   onCellClick,
   errorCell,
@@ -43,6 +45,10 @@ const Board: React.FC<BoardProps> = ({
             else if (isRelated) bgClass = 'bg-blue-50';
 
             const textClass = isInitial ? 'font-bold text-slate-900' : 'text-blue-600 font-medium';
+            
+            // Get notes for this cell
+            const cellNotes = notes[rowIndex][colIndex];
+            const hasNotes = cellValue === 0 && cellNotes && cellNotes.size > 0;
 
             return (
               <div
@@ -50,12 +56,27 @@ const Board: React.FC<BoardProps> = ({
                 onClick={() => onCellClick(rowIndex, colIndex)}
                 className={`
                   w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-14 lg:h-14 
-                  flex items-center justify-center text-lg sm:text-xl md:text-2xl cursor-pointer transition-colors duration-75
+                  flex items-center justify-center cursor-pointer transition-colors duration-75 relative
                   ${bgClass} ${textClass}
                   ${borderRight} ${borderBottom}
                 `}
               >
-                {cellValue !== 0 ? cellValue : ''}
+                {cellValue !== 0 ? (
+                  <span className="text-lg sm:text-xl md:text-2xl">{cellValue}</span>
+                ) : hasNotes ? (
+                  /* Notes Grid (3x3) */
+                  <div className="grid grid-cols-3 w-full h-full p-0.5 pointer-events-none">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(noteNum => (
+                      <div key={noteNum} className="flex items-center justify-center">
+                        {cellNotes.has(noteNum) && (
+                          <span className={`text-[8px] sm:text-[10px] leading-none ${isSelected ? 'text-white' : 'text-slate-500'}`}>
+                            {noteNum}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             );
           })

@@ -2,19 +2,25 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { generateSudoku } from './services/sudokuLogic';
 import Board from './components/Board';
 import Controls from './components/Controls';
-import { Difficulty, GameStatus, Grid, CellCoords } from './types';
+import { Difficulty, GameStatus, Grid, CellCoords, NotesGrid } from './types';
 
 const App: React.FC = () => {
   // Game State
   const [difficulty, setDifficulty] = useState<Difficulty>(Difficulty.EASY);
   const [initialGrid, setInitialGrid] = useState<Grid>([]);
   const [grid, setGrid] = useState<Grid>([]);
+  const [notes, setNotes] = useState<NotesGrid>([]); // State for pencil marks
   const [solvedGrid, setSolvedGrid] = useState<Grid>([]);
   const [selectedCell, setSelectedCell] = useState<CellCoords | null>(null);
   const [mistakes, setMistakes] = useState<number>(0);
   const [status, setStatus] = useState<GameStatus>(GameStatus.PLAYING);
   const [errorCell, setErrorCell] = useState<CellCoords | null>(null);
+  const [isNoteMode, setIsNoteMode] = useState<boolean>(false); // Toggle for Note Mode
   
+  // Helper to create empty notes grid
+  const createEmptyNotes = (): NotesGrid => 
+    Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => new Set<number>()));
+
   // Initialize Game
   const startNewGame = useCallback((diff: Difficulty = difficulty) => {
     const { initialGrid: newInitial, solvedGrid: newSolved } = generateSudoku(diff);
@@ -23,11 +29,13 @@ const App: React.FC = () => {
     
     setInitialGrid(newInitial);
     setGrid(playableGrid);
+    setNotes(createEmptyNotes());
     setSolvedGrid(newSolved);
     setMistakes(0);
     setStatus(GameStatus.PLAYING);
     setSelectedCell(null);
     setErrorCell(null);
+    setIsNoteMode(false);
   }, [difficulty]);
 
   useEffect(() => {
@@ -63,13 +71,35 @@ const App: React.FC = () => {
   const handleNumberInput = (num: number) => {
     if (status !== GameStatus.PLAYING || !selectedCell) return;
     
-    // Check if number is already completed
-    if (completedNumbers.has(num)) return;
-
     const { row, col } = selectedCell;
 
-    // Cannot edit initial cells or already filled cells
+    // Cannot edit initial cells
     if (initialGrid[row][col] !== 0) return;
+
+    // --- NOTE MODE LOGIC ---
+    if (isNoteMode) {
+      // Can only add notes to empty cells
+      if (grid[row][col] !== 0) return;
+
+      setNotes(prevNotes => {
+        const newNotes = prevNotes.map(r => r.map(set => new Set(set)));
+        const cellNotes = newNotes[row][col];
+        if (cellNotes.has(num)) {
+          cellNotes.delete(num);
+        } else {
+          cellNotes.add(num);
+        }
+        return newNotes;
+      });
+      return;
+    }
+
+    // --- NORMAL MODE LOGIC ---
+    
+    // Check if number is already completed (only applies to normal mode entry)
+    if (completedNumbers.has(num)) return;
+
+    // If cell is already filled, prevent overwrite unless we want to allow correction
     if (grid[row][col] !== 0) return; 
     
     // Validate against SOLVED grid (Strict Mode)
@@ -80,6 +110,13 @@ const App: React.FC = () => {
       newGrid[row][col] = num;
       setGrid(newGrid);
       
+      // Clear notes in this cell when a number is placed
+      setNotes(prevNotes => {
+        const newNotes = prevNotes.map(r => r.map(set => new Set(set)));
+        newNotes[row][col].clear();
+        return newNotes;
+      });
+
       // Check Win Condition
       const isFull = newGrid.every(r => r.every(c => c !== 0));
       if (isFull) {
@@ -102,9 +139,19 @@ const App: React.FC = () => {
     const { row, col } = selectedCell;
     if (initialGrid[row][col] !== 0) return; // Cannot delete initial
 
-    const newGrid = grid.map(r => [...r]);
-    newGrid[row][col] = 0;
-    setGrid(newGrid);
+    // If cell has a value, remove it
+    if (grid[row][col] !== 0) {
+      const newGrid = grid.map(r => [...r]);
+      newGrid[row][col] = 0;
+      setGrid(newGrid);
+    } else {
+      // If cell is empty, clear notes
+      setNotes(prevNotes => {
+        const newNotes = prevNotes.map(r => r.map(set => new Set(set)));
+        newNotes[row][col].clear();
+        return newNotes;
+      });
+    }
   };
 
   const handleDifficultyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -122,6 +169,8 @@ const App: React.FC = () => {
         handleNumberInput(parseInt(e.key));
       } else if (e.key === 'Backspace' || e.key === 'Delete') {
         handleDelete();
+      } else if (e.key === 'n' || e.key === 'N') {
+        setIsNoteMode(prev => !prev); // Shortcut for notes
       } else if (selectedCell) {
         let { row, col } = selectedCell;
         if (e.key === 'ArrowUp') row = Math.max(0, row - 1);
@@ -133,7 +182,7 @@ const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedCell, status, grid, completedNumbers]); // Added completedNumbers to deps
+  }, [selectedCell, status, grid, completedNumbers, isNoteMode]); 
 
   return (
     <div className="min-h-screen flex flex-col items-center py-6 px-2 sm:px-4 bg-sudoku-bg text-sudoku-text font-sans overflow-y-auto">
@@ -183,6 +232,7 @@ const App: React.FC = () => {
         <Board 
           grid={grid}
           initialGrid={initialGrid}
+          notes={notes}
           selectedCell={selectedCell}
           onCellClick={handleCellClick}
           errorCell={errorCell}
@@ -193,6 +243,8 @@ const App: React.FC = () => {
           onNumberClick={handleNumberInput}
           onDelete={handleDelete}
           onNewGame={() => startNewGame()}
+          onToggleNotes={() => setIsNoteMode(!isNoteMode)}
+          isNoteMode={isNoteMode}
           mistakes={mistakes}
           completedNumbers={completedNumbers}
         />

@@ -4,6 +4,8 @@ interface ControlsProps {
   onNumberClick: (num: number) => void;
   onDelete: () => void;
   onNewGame: () => void;
+  onToggleNotes: () => void;
+  isNoteMode: boolean;
   mistakes: number;
   completedNumbers: Set<number>;
 }
@@ -12,6 +14,8 @@ const Controls: React.FC<ControlsProps> = ({
   onNumberClick, 
   onDelete, 
   onNewGame,
+  onToggleNotes,
+  isNoteMode,
   mistakes,
   completedNumbers
 }) => {
@@ -21,7 +25,26 @@ const Controls: React.FC<ControlsProps> = ({
       {/* Stats Bar */}
       <div className="flex justify-between items-center px-4 py-2 bg-white rounded-lg shadow-sm">
         <div className="text-slate-600 font-medium">Mistakes: <span className={`${mistakes >= 3 ? 'text-red-500' : 'text-slate-900'}`}>{mistakes}/3</span></div>
-        <div className="text-slate-400 text-sm font-medium">Classic Mode</div>
+        <div className="flex items-center gap-2">
+           <span className="text-slate-400 text-sm font-medium">Classic Mode</span>
+        </div>
+      </div>
+
+      {/* Control Tools Row */}
+      <div className="flex gap-2 justify-end">
+         <button
+            onClick={onToggleNotes}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm
+              ${isNoteMode 
+                ? 'bg-blue-600 text-white shadow-blue-200 ring-2 ring-offset-1 ring-blue-600' 
+                : 'bg-white text-slate-600 hover:bg-slate-50'
+              }
+            `}
+         >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            Notes {isNoteMode ? 'ON' : 'OFF'}
+         </button>
       </div>
 
       {/* Numpad */}
@@ -32,13 +55,15 @@ const Controls: React.FC<ControlsProps> = ({
           return (
             <button
               key={num}
-              onClick={() => !isComplete && onNumberClick(num)}
-              disabled={isComplete}
+              onClick={() => (!isComplete || isNoteMode) && onNumberClick(num)}
+              disabled={isComplete && !isNoteMode}
               className={`
                 h-12 sm:h-14 rounded-lg shadow-sm text-2xl font-medium transition-colors focus:outline-none focus:ring-2
-                ${isComplete 
+                ${isComplete && !isNoteMode
                   ? 'bg-slate-100 text-slate-200 border border-slate-100 cursor-default' 
-                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 active:bg-blue-100 focus:ring-blue-300'
+                  : isNoteMode
+                    ? 'bg-slate-50 border border-slate-300 text-slate-600 hover:bg-blue-50 focus:ring-slate-400'
+                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-300 active:bg-blue-100 focus:ring-blue-300'
                 }
               `}
             >
