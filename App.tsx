@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { generateSudoku } from './services/sudokuLogic';
 import Board from './components/Board';
 import Controls from './components/Controls';
 import { Difficulty, GameStatus, Grid, CellCoords, NotesGrid } from './types';
+
+const STORAGE_KEY = 'sudoku-master-state-v1';
 
 const App: React.FC = () => {
   // Game State
@@ -17,13 +19,16 @@ const App: React.FC = () => {
   const [timer, setTimer] = useState<number>(0);
   const [status, setStatus] = useState<GameStatus>(GameStatus.PLAYING);
   const [errorCell, setErrorCell] = useState<CellCoords | null>(null);
-  const [isNoteMode, setIsNoteMode] = useState<boolean>(false); // Toggle for Note Mode
+  const [isNoteMode, setIsNoteMode] = useState<boolean>(false);
   
+  // Ref to track if the game has been initialized to prevent overwriting save with empty state
+  const isInitialized = useRef(false);
+
   // Helper to create empty notes grid
   const createEmptyNotes = (): NotesGrid => 
     Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => new Set<number>()));
 
-  // Initialize Game
+  // Start New Game Logic
   const startNewGame = useCallback((diff: Difficulty = difficulty) => {
     const { initialGrid: newInitial, solvedGrid: newSolved } = generateSudoku(diff);
     // Deep copy for playable grid
@@ -40,12 +45,69 @@ const App: React.FC = () => {
     setSelectedCell(null);
     setErrorCell(null);
     setIsNoteMode(false);
+    setDifficulty(diff); // Ensure state updates if called with specific diff
+    isInitialized.current = true;
   }, [difficulty]);
 
+  // LOAD GAME on Mount
   useEffect(() => {
-    startNewGame();
+    const savedData = localStorage.getItem(STORAGE_KEY);
+    
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        
+        // Restore simple states
+        setDifficulty(parsed.difficulty);
+        setInitialGrid(parsed.initialGrid);
+        setGrid(parsed.grid);
+        setSolvedGrid(parsed.solvedGrid);
+        setMistakes(parsed.mistakes);
+        setScore(parsed.score);
+        setTimer(parsed.timer);
+        setStatus(parsed.status);
+        
+        // Restore Notes (Array -> Set)
+        const restoredNotes = parsed.notes.map((row: any[]) => 
+          row.map((cell: any[]) => new Set(cell))
+        );
+        setNotes(restoredNotes);
+        
+        isInitialized.current = true;
+      } catch (error) {
+        console.error("Failed to load saved game", error);
+        startNewGame();
+      }
+    } else {
+      startNewGame();
+    }
+    // We only want this to run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // SAVE GAME on State Change
+  useEffect(() => {
+    if (!isInitialized.current || grid.length === 0) return;
+
+    // Convert Sets to Arrays for JSON serialization
+    const serializedNotes = notes.map(row => 
+      row.map(cell => Array.from(cell))
+    );
+
+    const gameState = {
+      difficulty,
+      initialGrid,
+      grid,
+      solvedGrid,
+      notes: serializedNotes,
+      mistakes,
+      score,
+      timer,
+      status
+    };
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+  }, [grid, notes, mistakes, score, timer, status, difficulty, initialGrid, solvedGrid]);
 
   // Timer Logic
   useEffect(() => {
@@ -58,7 +120,7 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [status]);
 
-  // Calculate completed numbers (appear 9 times)
+  // Calculate completed numbers
   const getCompletedNumbers = () => {
     const counts: Record<number, number> = {};
     grid.forEach(row => {
@@ -110,11 +172,7 @@ const App: React.FC = () => {
     }
 
     // --- NORMAL MODE LOGIC ---
-    
-    // Check if number is already completed (only applies to normal mode entry)
     if (completedNumbers.has(num)) return;
-
-    // If cell is already filled, prevent overwrite unless we want to allow correction
     if (grid[row][col] !== 0) return; 
     
     // Validate against SOLVED grid (Strict Mode)
@@ -125,18 +183,15 @@ const App: React.FC = () => {
       newGrid[row][col] = num;
       setGrid(newGrid);
       
-      // Update Score
       const diffMultiplier = difficulty === Difficulty.EASY ? 1 : difficulty === Difficulty.MEDIUM ? 2 : 3;
       setScore(prev => prev + (50 * diffMultiplier));
 
-      // Clear notes in this cell when a number is placed
       setNotes(prevNotes => {
         const newNotes = prevNotes.map(r => r.map(set => new Set(set)));
         newNotes[row][col].clear();
         return newNotes;
       });
 
-      // Check Win Condition
       const isFull = newGrid.every(r => r.every(c => c !== 0));
       if (isFull) {
         setStatus(GameStatus.WON);
@@ -147,9 +202,7 @@ const App: React.FC = () => {
         if (newMistakes >= 3) setStatus(GameStatus.LOST);
         return newMistakes;
       });
-      // Penalty for mistake
       setScore(prev => Math.max(0, prev - 100));
-      // Flash error
       setErrorCell({ row, col });
       setTimeout(() => setErrorCell(null), 800);
     }
@@ -158,15 +211,13 @@ const App: React.FC = () => {
   const handleDelete = () => {
     if (status !== GameStatus.PLAYING || !selectedCell) return;
     const { row, col } = selectedCell;
-    if (initialGrid[row][col] !== 0) return; // Cannot delete initial
+    if (initialGrid[row][col] !== 0) return;
 
-    // If cell has a value, remove it
     if (grid[row][col] !== 0) {
       const newGrid = grid.map(r => [...r]);
       newGrid[row][col] = 0;
       setGrid(newGrid);
     } else {
-      // If cell is empty, clear notes
       setNotes(prevNotes => {
         const newNotes = prevNotes.map(r => r.map(set => new Set(set)));
         newNotes[row][col].clear();
@@ -191,7 +242,7 @@ const App: React.FC = () => {
       } else if (e.key === 'Backspace' || e.key === 'Delete') {
         handleDelete();
       } else if (e.key === 'n' || e.key === 'N') {
-        setIsNoteMode(prev => !prev); // Shortcut for notes
+        setIsNoteMode(prev => !prev);
       } else if (selectedCell) {
         let { row, col } = selectedCell;
         if (e.key === 'ArrowUp') row = Math.max(0, row - 1);
