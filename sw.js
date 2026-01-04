@@ -1,11 +1,18 @@
-const CACHE_NAME = 'ai-sudoku-cache-v1';
+const CACHE_NAME = 'sudoku-master-offline-v2';
+const OFFLINE_URL = '/';
 
-// Install event: skip waiting to activate immediately
+// Install: Cache the app shell immediately
 self.addEventListener('install', (event) => {
   self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      // We cache the root URL to ensure the app shell loads offline
+      return cache.add(OFFLINE_URL);
+    })
+  );
 });
 
-// Activate event: clean up old caches
+// Activate: Clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -21,49 +28,50 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event: Network first for API, Stale-while-revalidate for assets
+// Fetch: Handle requests
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Don't cache Gemini API calls or other non-GET requests
-  if (event.request.method !== 'GET' || url.pathname.includes('generativelanguage')) {
+  // 1. Ignore non-GET requests and external API calls (Gemini)
+  if (event.request.method !== 'GET' || url.pathname.includes('generativelanguage') || url.protocol === 'chrome-extension:') {
     return;
   }
 
+  // 2. Navigation Requests (HTML): Network First, fallback to Cache (App Shell)
+  // This ensures that reloading the page while offline always returns the app
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => {
+          return caches.match(OFFLINE_URL);
+        })
+    );
+    return;
+  }
+
+  // 3. Asset Requests (JS, CSS, Images): Stale-While-Revalidate
+  // Serve from cache immediately, then update cache in background
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      // Strategy: Cache First, falling back to network
-      // This ensures the app loads instantly offline
-      if (cachedResponse) {
-        // Return cached response, but update cache in background (Stale-while-revalidate)
-        // for external scripts like tailwind or esm.sh which might change
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic' || networkResponse.type === 'cors') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-        }).catch(() => {
-          // Network failure, just stick with cache
-        });
-        
-        return cachedResponse;
-      }
-
-      // If not in cache, fetch from network
-      return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || (networkResponse.type !== 'basic' && networkResponse.type !== 'cors')) {
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
+        // Check if valid response
+        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
           return networkResponse;
         }
 
+        // Update cache with new version
         const responseToCache = networkResponse.clone();
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, responseToCache);
         });
 
         return networkResponse;
+      }).catch(() => {
+        // Network failed, nothing to do (cached response already returned if available)
       });
+
+      // Return cached response if available, otherwise wait for network
+      return cachedResponse || fetchPromise;
     })
   );
 });
